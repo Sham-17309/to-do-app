@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#6d5ce8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="To-Do">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>My To-Do Checklist</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:16px 12px 32px;background:#f6f5fc;color:#22243a;font-family:Arial, sans-serif}
+main{max-width:640px;margin:auto}header{background:#6d5ce8;color:white;padding:22px 18px;border-radius:18px}
+h1{margin:0 0 8px;font-size:26px}header p{margin:0;line-height:1.4}
+.card{background:#fff;margin-top:14px;padding:16px;border-radius:15px;box-shadow:0 3px 14px #2222220b}
+label{display:block;font-weight:bold;margin-bottom:8px}
+input{font:inherit;border:1px solid #cbc7e3;border-radius:10px;padding:12px;width:100%;background:white}
+button{font:inherit;border:0;border-radius:10px;padding:11px 13px;font-weight:bold;cursor:pointer;touch-action:manipulation}
+.addrow{display:flex;gap:8px}.addrow input{flex:1;min-width:0}.primary{background:#6d5ce8;color:white}
+.secondary{background:#efedff;color:#5141c7}.delete{background:#ffe9e9;color:#a51d2d}
+label.boxlabel{margin-top:14px}.hint{font-size:13px;color:#6c6980;line-height:1.4}
+.summary{font-weight:bold;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.task{border-top:1px solid #eeeaf8;padding:14px 0}.task:first-child{border-top:0}
+.taskhead{display:flex;gap:8px;align-items:center}.taskname{font-size:17px;font-weight:bold;flex:1;overflow-wrap:anywhere}
+.task.done .taskname{text-decoration:line-through;color:#777}
+.count{font-size:13px;color:#69657e;margin-top:8px}
+.boxes{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0}
+.checkbox{width:38px;height:38px;border:2px solid #aaa4d3;border-radius:9px;background:white;color:white;padding:0;font-size:22px;display:flex;align-items:center;justify-content:center}
+.checkbox.checked{background:#6d5ce8;border-color:#6d5ce8}
+.progress{height:7px;background:#eeeaf8;border-radius:20px;overflow:hidden}.bar{height:100%;background:#6d5ce8}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+.empty{text-align:center;color:#6c6980;padding:22px 0}
+#message{font-size:13px;color:#258044;margin-top:8px;min-height:16px}
+@media(max-width:400px){.addrow{flex-direction:column}.addrow button{width:100%}}
+</style>
+</head>
+<body><main>
+<header><h1>☑️ My To-Do List</h1><p>Add a task, choose how many boxes you want, then tick each box when you finish a part.</p></header>
+<section class="card">
+<label for="taskName">Task name</label>
+<div class="addrow"><input id="taskName" type="text" placeholder="Example: Study Maths" maxlength="120"><button type="button" id="addBtn" class="primary">+ Add task</button></div>
+<label class="boxlabel" for="boxCount">Number of boxes</label>
+<input id="boxCount" type="number" min="1" max="100" value="5" inputmode="numeric">
+<div class="hint">Choose from 1 to 100 boxes for each task.</div>
+<div id="message" aria-live="polite"></div>
+</section>
+<section class="card">
+<div class="summary"><span>My tasks</span><span id="overall">0 tasks · 0/0 boxes done</span></div>
+<div id="taskList"><div class="empty">No tasks yet — add one above.</div></div>
+</section>
+</main>
+<script>
+(function(){
+var STORAGE_KEY='todo_checklist_fixed_v2';
+var tasks=[];
+var nameInput=document.getElementById('taskName');
+var countInput=document.getElementById('boxCount');
+var list=document.getElementById('taskList');
+var overall=document.getElementById('overall');
+var message=document.getElementById('message');
+try{var saved=localStorage.getItem(STORAGE_KEY);if(saved){var parsed=JSON.parse(saved);if(Array.isArray(parsed))tasks=parsed;}}catch(e){}
+function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(tasks));message.textContent='Saved on this device ✓';}catch(e){message.textContent='Could not save in this browser. You can still use the checklist while this page is open.';}}
+function button(text,cls,fn){var b=document.createElement('button');b.type='button';b.textContent=text;b.className=cls;b.addEventListener('click',fn);return b;}
+function render(){
+ list.innerHTML='';
+ var total=0,doneTotal=0;
+ if(tasks.length===0){var empty=document.createElement('div');empty.className='empty';empty.textContent='No tasks yet — add one above.';list.appendChild(empty);}
+ tasks.forEach(function(task){
+  var count=Math.max(1,Math.min(100,Number(task.count)||1));
+  if(!Array.isArray(task.checks))task.checks=[];
+  while(task.checks.length<count)task.checks.push(false);
+  task.checks=task.checks.slice(0,count);
+  var done=task.checks.filter(Boolean).length;total+=count;doneTotal+=done;
+  var section=document.createElement('div');section.className='task'+(done===count?' done':'');
+  var head=document.createElement('div');head.className='taskhead';
+  var title=document.createElement('div');title.className='taskname';title.textContent=task.name;
+  head.appendChild(title);
+  head.appendChild(button('Edit','secondary',function(){var value=prompt('Enter the task name:',task.name);if(value===null)return;if(!value.trim()){alert('Please enter a task name.');return;}task.name=value.trim();save();render();}));
+  head.appendChild(button('Delete','delete',function(){if(confirm('Delete this task?')){tasks=tasks.filter(function(t){return t.id!==task.id;});save();render();}}));
+  section.appendChild(head);
+  var countText=document.createElement('div');countText.className='count';countText.textContent=done+' of '+count+' boxes completed';section.appendChild(countText);
+  var boxes=document.createElement('div');boxes.className='boxes';
+  for(let i=0;i<count;i++){
+   let box=button(task.checks[i]?'✓':'','checkbox'+(task.checks[i]?' checked':''),function(){task.checks[i]=!task.checks[i];save();render();});
+   box.setAttribute('aria-label','Box '+(i+1));boxes.appendChild(box);
+  }
+  section.appendChild(boxes);
+  var progress=document.createElement('div');progress.className='progress';var bar=document.createElement('div');bar.className='bar';bar.style.width=(done/count*100)+'%';progress.appendChild(bar);section.appendChild(progress);
+  var actions=document.createElement('div');actions.className='actions';
+  actions.appendChild(button('Change box count','secondary',function(){var value=prompt('How many boxes? Enter 1 to 100.',String(count));if(value===null)return;var n=Number(value);if(!Number.isInteger(n)||n<1||n>100){alert('Please enter a whole number from 1 to 100.');return;}task.checks=Array.from({length:n},function(_,i){return !!task.checks[i];});task.count=n;save();render();}));
+  actions.appendChild(button('Untick all','secondary',function(){task.checks=Array(count).fill(false);save();render();}));
+  section.appendChild(actions);list.appendChild(section);
+ });
+ overall.textContent=tasks.length+' tasks · '+doneTotal+'/'+total+' boxes done';
+}
+function addTask(){
+ var name=nameInput.value.trim();
+ var count=Number(countInput.value);
+ if(!name){message.textContent='Please type a task name first.';nameInput.focus();return;}
+ if(!Number.isInteger(count)||count<1||count>100){message.textContent='Choose a whole number of boxes from 1 to 100.';countInput.focus();return;}
+ tasks.unshift({id:String(Date.now())+Math.random().toString(36).slice(2),name:name,count:count,checks:Array(count).fill(false)});
+ nameInput.value='';save();render();nameInput.focus();
+}
+document.getElementById('addBtn').addEventListener('click',addTask);
+nameInput.addEventListener('keydown',function(e){if(e.key==='Enter')addTask();});
+render();
+})();
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+</script>
+</body></html>
